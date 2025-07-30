@@ -170,15 +170,15 @@ func assertStatus(t testing.TB, got, want int) {
 	}
 }
 
-func getLeagueFromResponse(t testing.TB, body io.Reader) (league []Player) {
+func getLeagueFromResponse(t testing.TB, body io.Reader) []Player {
 	t.Helper()
-	err := json.NewDecoder(body).Decode(&league)
+	league, err := NewLeague(body)
 
 	if err != nil {
 		t.Fatalf("Unable to parse response from server %q into slice of players, %v", body, err)
 	}
 
-	return
+	return league
 }
 
 func assertLeague(t testing.TB, got, want []Player) {
