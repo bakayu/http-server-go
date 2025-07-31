@@ -32,3 +32,4 @@ go.work.sum
 # .vscode/
 
 http-server-go
+game.db.json
