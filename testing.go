@@ -1,131 +1,63 @@
-package game
+package poker
 
 import (
 	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"reflect"
 	"testing"
+	"time"
 )
 
 // StubPlayerStore implements PlayerStore for testing purposes.
 type StubPlayerStore struct {
-	scores   map[string]int
-	winCalls []string
+	Scores   map[string]int
+	WinCalls []string
 	League   []Player
 }
 
 // GetPlayerScore returns a score from Scores.
 func (s *StubPlayerStore) GetPlayerScore(name string) int {
-	return s.scores[name]
+	score := s.Scores[name]
+	return score
 }
 
 // RecordWin will record a win to WinCalls.
 func (s *StubPlayerStore) RecordWin(name string) {
-	s.winCalls = append(s.winCalls, name)
+	s.WinCalls = append(s.WinCalls, name)
 }
 
+// GetLeague returns League.
 func (s *StubPlayerStore) GetLeague() League {
 	return s.League
 }
 
-func NewPostWinRequest(name string) *http.Request {
-	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/players/%s", name), nil)
-	return req
-}
-
-func NewGetScoreRequest(name string) *http.Request {
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/players/%s", name), nil)
-	return req
-}
-
-func AssertResponseBody(t testing.TB, got, want string) {
-	t.Helper()
-	if got != want {
-		t.Errorf("got: %q, want: %q", got, want)
-	}
-}
-
-func AssertStatus(t testing.TB, got, want int) {
-	t.Helper()
-	if got != want {
-		t.Errorf("got: %d, want: %d", got, want)
-	}
-}
-
-func GetLeagueFromResponse(t testing.TB, body io.Reader) []Player {
-	t.Helper()
-	league, err := NewLeague(body)
-
-	if err != nil {
-		t.Fatalf("Unable to parse response from server %q into slice of players, %v", body, err)
-	}
-
-	return league
-}
-
-func AssertLeague(t testing.TB, got, want []Player) {
-	t.Helper()
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v want %v", got, want)
-	}
-}
-
-func NewLeagueRequest() *http.Request {
-	req, _ := http.NewRequest(http.MethodGet, "/league", nil)
-	return req
-}
-
-func AssertContentType(t testing.TB, response *httptest.ResponseRecorder, want string) {
-	t.Helper()
-	if response.Result().Header.Get("content-type") != want {
-		t.Errorf("response did not have content-type of application/json, got %v", response.Result().Header)
-	}
-}
-
+// AssertPlayerWin allows you to spy on the store's calls to RecordWin.
 func AssertPlayerWin(t testing.TB, store *StubPlayerStore, winner string) {
 	t.Helper()
 
-	if len(store.winCalls) != 1 {
-		t.Fatalf("got %d calls to RecordWin, want %d", len(store.winCalls), 1)
+	if len(store.WinCalls) != 1 {
+		t.Fatalf("got %d calls to RecordWin want %d", len(store.WinCalls), 1)
 	}
 
-	if store.winCalls[0] != winner {
-		t.Errorf("did not store the correct winner, got %q, want %q", store.winCalls[0], winner)
-	}
-}
-
-func CreateTempFile(t testing.TB, initialData string) (*os.File, func()) {
-	t.Helper()
-
-	tmpfile, err := os.CreateTemp("", "db")
-
-	if err != nil {
-		t.Fatalf("could not create temp file %v", err)
-	}
-
-	tmpfile.Write([]byte(initialData))
-
-	removeFile := func() {
-		tmpfile.Close()
-		os.Remove(tmpfile.Name())
-	}
-
-	return tmpfile, removeFile
-}
-
-func AssertScoreEquals(t testing.TB, got, want int) {
-	t.Helper()
-	if got != want {
-		t.Errorf("got %d want %d", got, want)
+	if store.WinCalls[0] != winner {
+		t.Errorf("did not store correct winner got %q want %q", store.WinCalls[0], winner)
 	}
 }
 
-func AssertNoError(t testing.TB, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("didn't expect an error but got one, %v", err)
-	}
+// ScheduledAlert holds information about when an alert is scheduled.
+type ScheduledAlert struct {
+	At     time.Duration
+	Amount int
+}
+
+func (s ScheduledAlert) String() string {
+	return fmt.Sprintf("%d chips at %v", s.Amount, s.At)
+}
+
+// SpyBlindAlerter allows you to spy on ScheduleAlertAt calls.
+type SpyBlindAlerter struct {
+	Alerts []ScheduledAlert
+}
+
+// ScheduleAlertAt records alerts that have been scheduled.
+func (s *SpyBlindAlerter) ScheduleAlertAt(at time.Duration, amount int) {
+	s.Alerts = append(s.Alerts, ScheduledAlert{at, amount})
 }
