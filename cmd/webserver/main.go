@@ -3,23 +3,27 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
-	game "github.com/bakayu/http-server-go"
+	poker "github.com/bakayu/http-server-go"
 )
 
 const dbFileName = "game.db.json"
 
 func main() {
-	store, close, err := game.FileSystemPlayerStoreFromFile(dbFileName)
+	db, err := os.OpenFile(dbFileName, os.O_RDWR|os.O_CREATE, 0666)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("problem opening %s %v", dbFileName, err)
 	}
-	defer close()
 
-	server := game.NewPlayerServer(store)
+	store, err := poker.NewFileSystemPlayerStore(db)
 
-	if err := http.ListenAndServe(":5000", server); err != nil {
-		log.Fatalf("could not listen of port 5000 %v", err)
+	if err != nil {
+		log.Fatalf("problem creating file system player store, %v ", err)
 	}
+
+	server := poker.NewPlayerServer(store)
+
+	log.Fatal(http.ListenAndServe(":5000", server))
 }

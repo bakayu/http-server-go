@@ -1,24 +1,29 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"net/http"
 	"os"
 
-	game "github.com/bakayu/http-server-go"
+	poker "github.com/bakayu/http-server-go"
 )
 
 const dbFileName = "game.db.json"
 
 func main() {
-	store, close, err := game.FileSystemPlayerStoreFromFile(dbFileName)
+	db, err := os.OpenFile(dbFileName, os.O_RDWR|os.O_CREATE, 0666)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("problem opening %s %v", dbFileName, err)
 	}
-	defer close()
 
-	fmt.Println("Let's play poker")
-	fmt.Println("Type {Name} wins to record a win")
-	game.NewCLI(store, os.Stdin).PlayGame()
+	store, err := poker.NewFileSystemPlayerStore(db)
+
+	if err != nil {
+		log.Fatalf("problem creating file system player store, %v ", err)
+	}
+
+	server := poker.NewPlayerServer(store)
+
+	log.Fatal(http.ListenAndServe(":5000", server))
 }
